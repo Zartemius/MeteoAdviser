@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">ПРОГНОЗ ПОГОДЫ</string>
+    <string name="main_activity_humidity">Humidity: &#160;</string>
+    <string name="main_activity_wind">Wind: &#160;</string>
+    <string name="main_activity_current">Current</string>
+    <string name="main_activity_location">location</string>
+    <string name="main_activity_london">London</string>
+    <string name="main_activity_paris">Paris</string>
+    <string name="main_activity_new_york">New York</string>
+    <string name="main_activity_tokyo">Tokyo</string>
+    <string name="main_activity_m_sec"> m/sec </string>
+    <string name="main_activity_percent">percent</string>
+</resources>
