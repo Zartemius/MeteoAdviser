@@ -1,6 +1,11 @@
 package com.example.artem.meteoadviserjava;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -27,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
     private String TAG = "WEATHER";
     private TextView temperature;
     private ApiInterface api;
-    private GPSTracker gps;
     private TextView humidity;
     private TextView nameOfLocation;
     private TextView descriptionOfWeather;
@@ -42,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
         if(Build.VERSION.SDK_INT >=21) {
             Window window = this.getWindow();
@@ -51,30 +54,83 @@ public class MainActivity extends AppCompatActivity {
             window.setStatusBarColor(this.getResources().getColor(R.color.teal));
         }
 
+        api = WeatherAPI.getClient().create(ApiInterface.class);
+
+        ActivityCompat.requestPermissions(this,new String[]{ACCESS_FINE_LOCATION}, 1);
+    }
+
+
+    public void findViewById(){
         nameOfLocation = findViewById(R.id.activity_main_name_of_location);
         temperature = findViewById(R.id.activity_main_temperature);
         humidity = findViewById(R.id.activity_main_humidity);
         descriptionOfWeather = findViewById(R.id.activity_main_description_of_weather);
         wind = findViewById(R.id.activity_main_wind);
-        buttonCurrentLocation = findViewById(R.id.activity_main_button_current_location);
         date = findViewById(R.id.activity_main_date);
+        buttonCurrentLocation = findViewById(R.id.activity_main_button_current_location);
         buttonCityLondon = findViewById(R.id.activity_main_button_london);
         buttonCityParis = findViewById(R.id.activity_main_button_paris);
         buttonCityNewYork = findViewById(R.id.activity_main_button_new_york);
         buttonCityTokyo = findViewById(R.id.activity_main_button_tokyo);
+    }
 
-        api = WeatherAPI.getClient().create(ApiInterface.class);
-
+    public void setOnClickListenersForButtons(){
         buttonCurrentLocation.setOnClickListener(new OnButtonCurrentLocationClicked());
         buttonCityLondon.setOnClickListener(new OnButtonLondonClicked());
         buttonCityParis.setOnClickListener(new OnButtonParisClicked());
         buttonCityNewYork.setOnClickListener(new OnButtonNewYorkClicked());
         buttonCityTokyo.setOnClickListener(new OnButtonTokyoClicked());
-
-        getWeatherBasedOnCurrentLocation();
-
-        ActivityCompat.requestPermissions(this,new String[]{ACCESS_FINE_LOCATION}, 1);
     }
+
+    public void setViews(WeatherDay data){
+        nameOfLocation.setText(data.getmCity());
+        temperature.setText(data.getmTempWithDegree());
+        humidity.setText(data.getHumidity() + "%");
+        descriptionOfWeather.setText(data.getParameterOfWeather());
+        wind.setText(data.getWindSpeed() + " m/sec");
+        SimpleDateFormat formatDataOfWeek = new SimpleDateFormat("EEEE dd MMMM", Locale.ENGLISH);
+        String dayOfWeek = formatDataOfWeek.format(data.getDate().getTime());
+        date.setText(dayOfWeek);
+    }
+
+    //React on WIFI switched OFF and WIFI switched ON
+
+    @Override
+    protected void onStart(){
+        super.onStart();
+        IntentFilter intentFilter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
+        registerReceiver(wifiStateReceiver,intentFilter);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unregisterReceiver(wifiStateReceiver);
+
+    }
+
+    private BroadcastReceiver wifiStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int wifeStateExtra = intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, WifiManager.WIFI_STATE_UNKNOWN);
+
+            switch(wifeStateExtra) {
+                case WifiManager.WIFI_STATE_ENABLED:
+                    setContentView(R.layout.activity_main);
+                    findViewById();
+                    setOnClickListenersForButtons();
+                    getWeatherBasedOnCurrentLocation();
+                    break;
+
+                case WifiManager.WIFI_STATE_DISABLED:
+                    setContentView(R.layout.acitivity_main_with_disabled_wifi);
+                    break;
+
+            }
+        }
+    };
+
+    //
 
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
@@ -92,17 +148,16 @@ public class MainActivity extends AppCompatActivity {
 
         double latitude = 0 ;
         double longitude = 0;
-
-        gps = new GPSTracker(MainActivity.this);
+        GPSTracker gps = new GPSTracker(MainActivity.this);
+        String units = "metric";
+        String key = WeatherAPI.KEY;
+        Log.d(TAG, "OK");
 
         if(gps.canGetLocation()){
             latitude = gps.getLatitude();
             longitude = gps.getLongitude();
         }
 
-        String units = "metric";
-        String key = WeatherAPI.KEY;
-        Log.d(TAG, "OK");
 
         Call<WeatherDay> callToday = api.getWeatherForCurrentLocation(latitude,longitude,units,key);
 
@@ -155,17 +210,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-
-    public void setViews(WeatherDay data){
-        nameOfLocation.setText(data.getmCity());
-        temperature.setText(data.getmTempWithDegree());
-        humidity.setText(data.getHumidity() + "%");
-        descriptionOfWeather.setText(data.getParameterOfWeather());
-        wind.setText(data.getWindSpeed() + " m/sec");
-        SimpleDateFormat formatDataOfWeek = new SimpleDateFormat("EEEE dd MMMM", Locale.ENGLISH);
-        String dayOfWeek = formatDataOfWeek.format(data.getDate().getTime());
-        date.setText(dayOfWeek);
-    }
 
     private class OnButtonCurrentLocationClicked implements View.OnClickListener{
         @Override

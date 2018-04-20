@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ПРОГНОЗ ПОГОДЫ</string>
+    <string name="app_name">Meteo Adviser</string>
     <string name="main_activity_humidity">Humidity: &#160;</string>
     <string name="main_activity_wind">Wind: &#160;</string>
     <string name="main_activity_current">Current</string>
@@ -10,4 +10,5 @@
     <string name="main_activity_tokyo">Tokyo</string>
     <string name="main_activity_m_sec"> m/sec </string>
     <string name="main_activity_percent">percent</string>
+    <string name="main_activity_no_connection">No internet connection</string>
 </resources>
