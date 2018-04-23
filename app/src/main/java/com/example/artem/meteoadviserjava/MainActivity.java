@@ -1,22 +1,21 @@
 package com.example.artem.meteoadviserjava;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import com.example.artem.meteoadviserjava.data.WeatherDay;
+import com.example.artem.meteoadviserjava.internetconnection.ConnectionReceiver;
 import com.example.artem.meteoadviserjava.rest.ApiInterface;
 import com.example.artem.meteoadviserjava.rest.WeatherAPI;
 import com.example.artem.meteoadviserjava.tracker.GPSTracker;
@@ -27,7 +26,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements ConnectionReceiver.ConnectionReceiverListener{
 
     private String TAG = "WEATHER";
     private TextView temperature;
@@ -42,10 +41,20 @@ public class MainActivity extends AppCompatActivity {
     private ImageView buttonCityParis;
     private ImageView buttonCityNewYork;
     private ImageView buttonCityTokyo;
+    private RelativeLayout relativeLayoutForNoConnection;
+    private SwipeRefreshLayout mSwipeRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        findViewById();
+        setOnClickListenersForButtons();
+
+        api = WeatherAPI.getClient().create(ApiInterface.class);
+
+        checkConnection();
 
         if(Build.VERSION.SDK_INT >=21) {
             Window window = this.getWindow();
@@ -54,11 +63,19 @@ public class MainActivity extends AppCompatActivity {
             window.setStatusBarColor(this.getResources().getColor(R.color.teal));
         }
 
-        api = WeatherAPI.getClient().create(ApiInterface.class);
-
         ActivityCompat.requestPermissions(this,new String[]{ACCESS_FINE_LOCATION}, 1);
-    }
 
+        mSwipeRefreshLayout.setColorSchemeColors(getResources().getColor(R.color.teal));
+
+        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                mSwipeRefreshLayout.setRefreshing(true);
+                checkConnection();
+                mSwipeRefreshLayout.setRefreshing(false);
+            }
+        });
+    }
 
     public void findViewById(){
         nameOfLocation = findViewById(R.id.activity_main_name_of_location);
@@ -72,6 +89,8 @@ public class MainActivity extends AppCompatActivity {
         buttonCityParis = findViewById(R.id.activity_main_button_paris);
         buttonCityNewYork = findViewById(R.id.activity_main_button_new_york);
         buttonCityTokyo = findViewById(R.id.activity_main_button_tokyo);
+        relativeLayoutForNoConnection = findViewById(R.id.activity_main_parent_layout);
+        mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipeRefreshLayout);
     }
 
     public void setOnClickListenersForButtons(){
@@ -95,40 +114,49 @@ public class MainActivity extends AppCompatActivity {
 
     //React on WIFI switched OFF and WIFI switched ON
 
+
     @Override
-    protected void onStart(){
+    public void onNetworkConnectionChanged(boolean isConnected) {
+        createLayout(isConnected);
+    }
+
+    @Override
+    protected void onStart() {
         super.onStart();
-        IntentFilter intentFilter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
-        registerReceiver(wifiStateReceiver,intentFilter);
+        MaApplication.getInstance().setConnectionListener(this);
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
-        unregisterReceiver(wifiStateReceiver);
+    protected void onResume() {
+        super.onResume();
 
+        MaApplication.getInstance().setConnectionListener(this);
     }
 
-    private BroadcastReceiver wifiStateReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            int wifeStateExtra = intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, WifiManager.WIFI_STATE_UNKNOWN);
-
-            switch(wifeStateExtra) {
-                case WifiManager.WIFI_STATE_ENABLED:
-                    setContentView(R.layout.activity_main);
-                    findViewById();
-                    setOnClickListenersForButtons();
-                    getWeatherBasedOnCurrentLocation();
-                    break;
-
-                case WifiManager.WIFI_STATE_DISABLED:
-                    setContentView(R.layout.acitivity_main_with_disabled_wifi);
-                    break;
-
-            }
+    public void checkConnection(){
+        boolean isConnected = ConnectionReceiver.isConnected();
+        if (isConnected) {
+            createLayout(isConnected);
+            getWeatherBasedOnCurrentLocation();
+        }else{
+            createLayout(isConnected);
         }
-    };
+    }
+    //
+
+
+    //Insert layout to show absence of connection in main_activity layout
+
+    public void createLayout(boolean isConnected) {
+
+        if(!isConnected) {
+            relativeLayoutForNoConnection.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+        }else{
+            relativeLayoutForNoConnection.setLayoutParams(new RelativeLayout.LayoutParams(0,
+                    0));
+        }
+    }
 
     //
 
